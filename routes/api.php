@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AdminStatsController;
+use App\Http\Controllers\Api\TestimonialController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentController;
@@ -8,6 +9,9 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
+
+// Public testimonials
+Route::get('/testimonials', [TestimonialController::class, 'index']);
 
 // Auth
 Route::prefix('auth')->group(function () {
@@ -28,6 +32,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/transactions/{transaction}/documents', [DocumentController::class, 'store']);
     Route::delete('/documents/{document}',               [DocumentController::class, 'destroy']);
 
+    // Testimonials (client submit + own status)
+    Route::post('/testimonials',      [TestimonialController::class, 'store']);
+    Route::get('/testimonials/mine',  [TestimonialController::class, 'mine']);
+
     // Staff list for assignment
     Route::get('/staff', [UserController::class, 'staff']);
 
@@ -42,7 +50,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Admin routes
     Route::prefix('admin')->middleware('role:admin')->group(function () {
-        Route::get('stats', [AdminStatsController::class, 'stats']);
+        Route::get('stats',     [AdminStatsController::class, 'stats']);
+        Route::get('analytics',       [AdminStatsController::class, 'analytics']);
+        Route::get('testimonials',    [TestimonialController::class, 'adminIndex']);
+        Route::put('testimonials/{testimonial}', [TestimonialController::class, 'updateStatus']);
         Route::apiResource('users',         UserController::class);
         Route::apiResource('announcements', AnnouncementController::class)->except(['index']);
     });
