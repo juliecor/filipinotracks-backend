@@ -15,12 +15,15 @@ class MessageController extends Controller
     private function shape(Message $m): array
     {
         return [
-            'id'           => $m->id,
-            'sender_id'    => $m->sender_id,
-            'sender_name'  => $m->sender->name,
-            'sender_avatar'=> $m->sender->profile_picture_url,
-            'body'         => $m->body,
-            'created_at'   => $m->created_at,
+            'id'             => $m->id,
+            'sender_id'      => $m->sender_id,
+            'sender_name'    => $m->sender->name,
+            'sender_avatar'  => $m->sender->profile_picture_url,
+            'body'           => $m->body,
+            'attachment_url' => $m->attachment_path
+                                    ? asset('storage/' . $m->attachment_path)
+                                    : null,
+            'created_at'     => $m->created_at,
         ];
     }
 
@@ -52,7 +55,14 @@ class MessageController extends Controller
     // POST /transactions/{transaction}/messages
     public function store(Request $request, Transaction $transaction)
     {
-        $request->validate(['body' => 'required|string|max:2000']);
+        $request->validate([
+            'body'       => 'nullable|string|max:2000',
+            'attachment' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp|max:8192',
+        ]);
+
+        if (!$request->filled('body') && !$request->hasFile('attachment')) {
+            return response()->json(['message' => 'A message or image is required.'], 422);
+        }
 
         $senderId = $request->user()->id;
         $role     = $request->user()->roles->first()?->name;
@@ -68,22 +78,32 @@ class MessageController extends Controller
             $receiverId = $transaction->user_id;
         }
 
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $request->file('attachment')->store('chat', 'public');
+        }
+
         $message = Message::create([
-            'transaction_id' => $transaction->id,
-            'sender_id'      => $senderId,
-            'receiver_id'    => $receiverId,
-            'body'           => $request->body,
+            'transaction_id'  => $transaction->id,
+            'sender_id'       => $senderId,
+            'receiver_id'     => $receiverId,
+            'body'            => $request->body ?? '',
+            'attachment_path' => $attachmentPath,
         ]);
 
         $message->load('sender:id,name,profile_picture');
 
         // Notify receiver
         if ($receiverId) {
+            $notifBody = $request->filled('body')
+                ? Str::limit($request->body, 80)
+                : '📷 Sent a photo';
+
             Notification::create([
                 'user_id' => $receiverId,
                 'type'    => 'new_message',
                 'title'   => 'New message from ' . $request->user()->name,
-                'body'    => Str::limit($request->body, 80),
+                'body'    => $notifBody,
                 'data'    => [
                     'transaction_id'   => $transaction->id,
                     'transaction_code' => $transaction->transaction_code,
@@ -133,7 +153,7 @@ class MessageController extends Controller
                 'service_type'     => $tx->service_type,
                 'other_name'       => $other?->name ?? 'Support Team',
                 'other_avatar'     => $other?->profile_picture_url,
-                'last_message'     => $lastMsg?->body,
+                'last_message'     => $lastMsg?->body ?: ($lastMsg?->attachment_path ? '📷 Photo' : null),
                 'last_message_at'  => $lastMsg?->created_at,
                 'unread_count'     => $unread,
             ];
