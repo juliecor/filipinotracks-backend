@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
@@ -16,8 +17,10 @@ Route::get('/testimonials', [TestimonialController::class, 'index']);
 
 // Auth
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login',    [AuthController::class, 'login']);
+    Route::post('/register',    [AuthController::class, 'register']);
+    Route::post('/login',       [AuthController::class, 'login']);
+    Route::post('/otp/send',    [OtpController::class, 'send']);
+    Route::post('/otp/verify',  [OtpController::class, 'verify']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {

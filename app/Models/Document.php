@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class Document extends Model
 {
@@ -16,7 +17,7 @@ class Document extends Model
 
     public function getUrlAttribute(): string
     {
-        return asset('storage/' . $this->file_path);
+        return Storage::disk('s3')->url($this->file_path);
     }
 
     public function transaction(): BelongsTo { return $this->belongsTo(Transaction::class); }

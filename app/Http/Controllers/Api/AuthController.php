@@ -106,10 +106,10 @@ class AuthController extends Controller
         $user = $request->user();
 
         if ($user->profile_picture) {
-            Storage::disk('public')->delete($user->profile_picture);
+            Storage::disk('s3')->delete($user->profile_picture);
         }
 
-        $path = $request->file('profile_picture')->store('profile-pictures', 'public');
+        $path = $request->file('profile_picture')->store('profile-pictures', 's3');
         $user->update(['profile_picture' => $path]);
 
         return response()->json($user->load('roles'));

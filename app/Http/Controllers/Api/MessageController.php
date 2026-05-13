@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\NewMessageReceived;
 use App\Models\Message;
 use App\Models\Notification;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class MessageController extends Controller
@@ -21,7 +24,7 @@ class MessageController extends Controller
             'sender_avatar'  => $m->sender->profile_picture_url,
             'body'           => $m->body,
             'attachment_url' => $m->attachment_path
-                                    ? asset('storage/' . $m->attachment_path)
+                                    ? Storage::disk('s3')->url($m->attachment_path)
                                     : null,
             'created_at'     => $m->created_at,
         ];
@@ -80,7 +83,7 @@ class MessageController extends Controller
 
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('chat', 'public');
+            $attachmentPath = $request->file('attachment')->store('chat', 's3');
         }
 
         $message = Message::create([
@@ -110,6 +113,13 @@ class MessageController extends Controller
                     'sender_id'        => $senderId,
                 ],
             ]);
+        }
+
+        // Email receiver
+        $receiver = User::find($receiverId);
+        if ($receiver?->email) {
+            $mail = Mail::to($receiver->email);
+            $mail->send(new NewMessageReceived($transaction, $message, $request->user()->name));
         }
 
         return response()->json($this->shape($message), 201);

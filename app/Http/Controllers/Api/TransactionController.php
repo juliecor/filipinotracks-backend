@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TransactionStatusChanged;
 use App\Models\Notification;
 use App\Models\Transaction;
 use App\Models\TransactionLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class TransactionController extends Controller
 {
@@ -127,6 +129,19 @@ class TransactionController extends Controller
                     'data'    => ['transaction_id' => $transaction->id, 'status' => $data['status']],
                 ]);
             }
+
+            // Email client
+            $transaction->load('user');
+            if ($transaction->user?->email) {
+                $mail = Mail::to($transaction->user->email);
+                if ($cc = env('MAIL_CC')) $mail->cc($cc);
+                $mail->send(new TransactionStatusChanged(
+                    $transaction,
+                    $oldStatus,
+                    $data['status'],
+                    $data['remarks'] ?? null,
+                ));
+            }
         }
 
         // Notify staff when assigned
@@ -141,7 +156,7 @@ class TransactionController extends Controller
         }
 
         return response()->json(
-            $transaction->fresh(['user:id,name,email', 'assignedStaff:id,name,email', 'logs.performedBy:id,name'])
+            $transaction->fresh(['user:id,name,email', 'assignedStaff:id,name,email', 'logs.performedBy:id,name', 'documents', 'payments'])
         );
     }
 

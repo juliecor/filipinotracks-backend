@@ -19,7 +19,7 @@ class DocumentController extends Controller
         ]);
 
         $file = $request->file('file');
-        $path = $file->store('documents/' . $transaction->transaction_code, 'public');
+        $path = $file->store('documents/' . $transaction->transaction_code, 's3');
 
         $document = $transaction->documents()->create([
             'uploaded_by'   => $request->user()->id,
@@ -41,7 +41,7 @@ class DocumentController extends Controller
             abort(403);
         }
 
-        Storage::disk('public')->delete($document->file_path);
+        Storage::disk('s3')->delete($document->file_path);
         $document->delete();
 
         return response()->json(['message' => 'Document deleted.']);

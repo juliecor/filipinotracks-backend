@@ -6,6 +6,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -28,7 +29,7 @@ class User extends Authenticatable
     public function getProfilePictureUrlAttribute(): ?string
     {
         if (!$this->profile_picture) return null;
-        return url('storage/' . $this->profile_picture);
+        return Storage::disk('s3')->url($this->profile_picture);
     }
 
     protected $hidden = [
