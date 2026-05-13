@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\TestimonialController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentController;
+use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\UserController;
@@ -31,6 +32,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Documents
     Route::post('/transactions/{transaction}/documents', [DocumentController::class, 'store']);
     Route::delete('/documents/{document}',               [DocumentController::class, 'destroy']);
+
+    // Transaction messages (chat)
+    Route::get('/messages/conversations',               [MessageController::class, 'conversations']);
+    Route::get('/messages/unread-count',                [MessageController::class, 'unreadCount']);
+    Route::get('/transactions/{transaction}/messages',  [MessageController::class, 'index']);
+    Route::post('/transactions/{transaction}/messages', [MessageController::class, 'store']);
 
     // Testimonials (client submit + own status)
     Route::post('/testimonials',      [TestimonialController::class, 'store']);
