@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OtpController;
+use App\Http\Controllers\Api\PropertyMapController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/transactions/{transaction}/documents', [DocumentController::class, 'store']);
     Route::delete('/documents/{document}',               [DocumentController::class, 'destroy']);
 
+    // Property Map (Title Verification)
+    Route::get('/transactions/{transaction}/property-map',  [PropertyMapController::class, 'show']);
+    Route::post('/transactions/{transaction}/property-map', [PropertyMapController::class, 'store']);
+    Route::put('/transactions/{transaction}/property-map',  [PropertyMapController::class, 'update']);
+
     // Transaction messages (chat)
     Route::get('/messages/conversations',               [MessageController::class, 'conversations']);
     Route::get('/messages/unread-count',                [MessageController::class, 'unreadCount']);
@@ -60,7 +66,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Admin routes
     Route::prefix('admin')->middleware('role:admin')->group(function () {
-        Route::get('stats',     [AdminStatsController::class, 'stats']);
+        Route::get('stats',           [AdminStatsController::class, 'stats']);
+        Route::get('property-maps',   [PropertyMapController::class, 'index']);
         Route::get('analytics',       [AdminStatsController::class, 'analytics']);
         Route::get('testimonials',    [TestimonialController::class, 'adminIndex']);
         Route::put('testimonials/{testimonial}', [TestimonialController::class, 'updateStatus']);

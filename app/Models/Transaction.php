@@ -29,4 +29,5 @@ class Transaction extends Model
     public function documents(): HasMany { return $this->hasMany(Document::class); }
     public function payments(): HasMany { return $this->hasMany(Payment::class); }
     public function messages(): HasMany { return $this->hasMany(Message::class); }
+    public function propertyMap() { return $this->hasOne(PropertyMap::class); }
 }
