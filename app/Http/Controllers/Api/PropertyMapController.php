@@ -30,6 +30,21 @@ class PropertyMapController extends Controller
         return response()->json($maps);
     }
 
+    // GET /property-maps  — public registry for any authenticated user
+    // Returns property records without sensitive submitter info.
+    public function publicIndex(Request $request)
+    {
+        $maps = PropertyMap::with([
+                'transaction:id,transaction_code,status,service_type',
+                'boundaries',
+            ])
+            ->whereHas('transaction')
+            ->latest()
+            ->get();
+
+        return response()->json($maps);
+    }
+
     // GET /transactions/{transaction}/property-map
     public function show(Request $request, Transaction $transaction)
     {
@@ -124,6 +139,19 @@ class PropertyMapController extends Controller
         $map->update($data);
 
         return response()->json($map->load('boundaries', 'verifiedBy:id,name'));
+    }
+
+    // DELETE /admin/property-maps/{propertyMap} — admin only
+    public function destroy(Request $request, PropertyMap $propertyMap)
+    {
+        $user = $request->user();
+        if (!$user->hasRole('admin')) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $propertyMap->delete();
+
+        return response()->json(['message' => 'Property map deleted.']);
     }
 
     private function authorizeAccess($user, $transaction)

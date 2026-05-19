@@ -42,6 +42,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/transactions/{transaction}/property-map', [PropertyMapController::class, 'store']);
     Route::put('/transactions/{transaction}/property-map',  [PropertyMapController::class, 'update']);
 
+    // Public property registry (any authenticated user — sensitive fields stripped)
+    Route::get('/property-maps', [PropertyMapController::class, 'publicIndex']);
+
     // Transaction messages (chat)
     Route::get('/messages/conversations',               [MessageController::class, 'conversations']);
     Route::get('/messages/unread-count',                [MessageController::class, 'unreadCount']);
@@ -67,7 +70,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin routes
     Route::prefix('admin')->middleware('role:admin')->group(function () {
         Route::get('stats',           [AdminStatsController::class, 'stats']);
-        Route::get('property-maps',   [PropertyMapController::class, 'index']);
+        Route::get('property-maps',                    [PropertyMapController::class, 'index']);
+        Route::delete('property-maps/{propertyMap}',   [PropertyMapController::class, 'destroy']);
         Route::get('analytics',       [AdminStatsController::class, 'analytics']);
         Route::get('testimonials',    [TestimonialController::class, 'adminIndex']);
         Route::put('testimonials/{testimonial}', [TestimonialController::class, 'updateStatus']);
