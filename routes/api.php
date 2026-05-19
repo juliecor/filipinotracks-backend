@@ -72,7 +72,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('stats',           [AdminStatsController::class, 'stats']);
         Route::get('property-maps',                    [PropertyMapController::class, 'index']);
         Route::delete('property-maps/{propertyMap}',   [PropertyMapController::class, 'destroy']);
-        Route::get('analytics',       [AdminStatsController::class, 'analytics']);
         Route::get('testimonials',    [TestimonialController::class, 'adminIndex']);
         Route::put('testimonials/{testimonial}', [TestimonialController::class, 'updateStatus']);
         Route::apiResource('users',         UserController::class);
