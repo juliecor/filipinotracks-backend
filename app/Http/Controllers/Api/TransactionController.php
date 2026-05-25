@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\LandTitleVerificationApproved;
 use App\Mail\TransactionStatusChanged;
 use App\Models\Notification;
 use App\Models\Transaction;
 use App\Models\TransactionLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class TransactionController extends Controller
@@ -40,7 +42,7 @@ class TransactionController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'service_type'           => 'required|in:title-verification,title-transfer,tax-declaration,mortgage-annotation,title-cancellation,land-registration,property-consultation,document-processing',
+            'service_type'           => 'required|in:title-verification,title-cancellation,land-registration,property-consultation',
             'property_title_number'  => 'nullable|string',
             'lot_number'             => 'nullable|string',
             'block_number'           => 'nullable|string',
@@ -83,7 +85,7 @@ class TransactionController extends Controller
         $this->authorizeAccess($user, $transaction);
 
         $data = $request->validate([
-            'status'                 => 'sometimes|in:submitted,under review,verification ongoing,processing,waiting for requirements,approved,released,rejected',
+            'status'                 => 'sometimes|in:submitted,under review,verification ongoing,processing,waiting for requirements,pending approval,approved,released,rejected',
             'remarks'                => 'nullable|string',
             'assigned_staff_id'      => 'nullable|exists:users,id',
             'property_title_number'  => 'nullable|string',
@@ -96,6 +98,14 @@ class TransactionController extends Controller
             'registered_owner'       => 'nullable|string',
             'service_fee'            => 'nullable|numeric',
         ]);
+
+        // Two-tier approval: only admin can set the final-verdict statuses.
+        $adminOnly = ['approved', 'released', 'rejected'];
+        if (isset($data['status']) && in_array($data['status'], $adminOnly, true) && !$user->hasRole('admin')) {
+            return response()->json([
+                'message' => 'Only an admin can set this status. Staff should mark as "Pending Approval" first.',
+            ], 403);
+        }
 
         $oldStatus = $transaction->status;
         $transaction->update($data);
@@ -135,12 +145,30 @@ class TransactionController extends Controller
             if ($transaction->user?->email) {
                 $mail = Mail::to($transaction->user->email);
                 if ($cc = env('MAIL_CC')) $mail->cc($cc);
-                $mail->send(new TransactionStatusChanged(
-                    $transaction,
-                    $oldStatus,
-                    $data['status'],
-                    $data['remarks'] ?? null,
-                ));
+
+                // Special branded email when a Land / Title Verification is APPROVED —
+                // includes a satellite map snapshot of the verified property.
+                $isApproved = $data['status'] === 'approved';
+                $isLandTitle = $transaction->service_type === 'title-verification';
+
+                try {
+                    if ($isApproved && $isLandTitle) {
+                        $mail->send(new LandTitleVerificationApproved($transaction));
+                    } else {
+                        $mail->send(new TransactionStatusChanged(
+                            $transaction,
+                            $oldStatus,
+                            $data['status'],
+                            $data['remarks'] ?? null,
+                        ));
+                    }
+                } catch (\Throwable $e) {
+                    // Don't fail the API request if the mail server hiccups
+                    Log::warning('Status-change email failed: ' . $e->getMessage(), [
+                        'transaction_id' => $transaction->id,
+                        'new_status'     => $data['status'],
+                    ]);
+                }
             }
         }
 
@@ -163,8 +191,26 @@ class TransactionController extends Controller
     public function destroy(Request $request, Transaction $transaction)
     {
         if (!$request->user()->hasRole('admin')) abort(403);
-        $transaction->delete();
-        return response()->json(['message' => 'Transaction deleted.']);
+
+        // Clean up S3 files for uploaded documents before deleting the row.
+        // DB cascade only handles DB rows — orphaned S3 objects would otherwise stay forever.
+        $transaction->load('documents');
+        foreach ($transaction->documents as $doc) {
+            try {
+                if ($doc->file_path) {
+                    \Illuminate\Support\Facades\Storage::disk('s3')->delete($doc->file_path);
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Failed to remove S3 file {$doc->file_path}: " . $e->getMessage());
+            }
+        }
+
+        $code = $transaction->transaction_code;
+        $transaction->delete();   // cascades: documents, transaction_logs, payments, property_maps (→ boundaries)
+
+        return response()->json([
+            'message' => "Transaction {$code} deleted.",
+        ]);
     }
 
     private function authorizeAccess($user, $transaction)
