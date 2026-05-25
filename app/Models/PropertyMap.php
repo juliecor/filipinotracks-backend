@@ -24,4 +24,48 @@ class PropertyMap extends Model
     public function transaction() { return $this->belongsTo(Transaction::class); }
     public function boundaries()  { return $this->hasMany(PropertyBoundary::class)->orderBy('sort_order'); }
     public function verifiedBy()  { return $this->belongsTo(User::class, 'verified_by'); }
+
+    /**
+     * Build a Google Static Maps URL embedding this property's pin + polygon.
+     * Returns null when there is no usable geometry or no GOOGLE_MAPS_API_KEY.
+     * Used by both the approval email and the admin "Email Client" composer.
+     */
+    public function staticMapUrl(int $width = 640, int $height = 420): ?string
+    {
+        $key = env('GOOGLE_MAPS_API_KEY');
+        if (!$key) return null;
+
+        $polygonCoords = $this->geojson_polygon['geometry']['coordinates'][0] ?? null;
+        $hasPin     = $this->latitude && $this->longitude;
+        $hasPolygon = is_array($polygonCoords) && count($polygonCoords) >= 3;
+
+        if (!$hasPin && !$hasPolygon) return null;
+
+        $params = [
+            'size'    => "{$width}x{$height}",
+            'scale'   => 2,
+            'maptype' => 'satellite',
+            'key'     => $key,
+        ];
+
+        if ($hasPolygon) {
+            // GeoJSON is [lng, lat]; Google expects "lat,lng"
+            $pathPoints = collect($polygonCoords)
+                ->map(fn($pair) => $pair[1] . ',' . $pair[0])
+                ->implode('|');
+            // Gold stroke + translucent gold fill (matches the in-app polygon styling)
+            $params['path'] = 'color:0xC9A24Aff|weight:3|fillcolor:0xC9A24A55|' . $pathPoints;
+        }
+
+        if ($hasPin) {
+            $params['markers'] = 'color:0xC9A24A|' . $this->latitude . ',' . $this->longitude;
+            // Center on the pin when no polygon — otherwise the polygon path implicitly frames the view
+            if (!$hasPolygon) {
+                $params['center'] = $this->latitude . ',' . $this->longitude;
+                $params['zoom']   = 18;
+            }
+        }
+
+        return 'https://maps.googleapis.com/maps/api/staticmap?' . http_build_query($params);
+    }
 }

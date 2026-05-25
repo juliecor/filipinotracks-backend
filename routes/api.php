@@ -33,6 +33,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Transactions (role-filtered inside controller)
     Route::apiResource('transactions', TransactionController::class);
 
+    // On-demand admin/staff email to the transaction's client
+    Route::post('/transactions/{transaction}/email-client', [TransactionController::class, 'emailClient']);
+
     // Documents
     Route::post('/transactions/{transaction}/documents', [DocumentController::class, 'store']);
     Route::delete('/documents/{document}',               [DocumentController::class, 'destroy']);

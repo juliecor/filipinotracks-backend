@@ -140,13 +140,7 @@
         </table>
       </td></tr>
 
-      {{-- Footer --}}
-      <tr><td style="background:#0A1628;padding:22px 32px;text-align:center;">
-        <p style="margin:0;color:rgba(255,255,255,0.6);font-size:12px;line-height:1.7;">
-          © {{ date('Y') }} FilipinoTracks. All rights reserved.<br>
-          <span style="color:#C9A24A;font-weight:700;letter-spacing:1px;font-size:10px;">LRA ACCREDITED · BIR REGISTERED · DTI LICENSED</span>
-        </p>
-      </td></tr>
+      @include('emails.partials.brand_banner')
 
     </table>
   </td></tr>

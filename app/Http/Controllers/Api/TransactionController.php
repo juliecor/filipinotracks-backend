@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\AdminMessageToClient;
 use App\Mail\LandTitleVerificationApproved;
 use App\Mail\TransactionStatusChanged;
 use App\Models\Notification;
@@ -210,6 +211,76 @@ class TransactionController extends Controller
 
         return response()->json([
             'message' => "Transaction {$code} deleted.",
+        ]);
+    }
+
+    /**
+     * On-demand "Email Client" action from the transaction page.
+     * Admin/staff types a subject + body + optional attachments → email is sent
+     * to the transaction's client.
+     */
+    public function emailClient(Request $request, Transaction $transaction)
+    {
+        $user = $request->user();
+        if (!$user->hasRole('admin') && !$user->hasRole('staff') && !$user->hasRole('agent')) {
+            abort(403);
+        }
+        // Staff can only email clients on transactions assigned to them
+        if (!$user->hasRole('admin') && $transaction->assigned_staff_id !== $user->id) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'subject'         => 'required|string|max:140',
+            'body'            => 'required|string|max:5000',
+            'attachments'     => 'nullable|array|max:5',
+            'attachments.*'   => 'file|max:10240|mimes:pdf,jpg,jpeg,png,gif,doc,docx,xls,xlsx',
+        ]);
+
+        $transaction->load('user');
+        if (!$transaction->user?->email) {
+            return response()->json(['message' => 'This transaction has no client email on file.'], 422);
+        }
+
+        // Read attachments into memory so they survive the temp-file lifecycle.
+        $attachments = [];
+        foreach ($request->file('attachments', []) as $file) {
+            $attachments[] = [
+                'data' => file_get_contents($file->getRealPath()),
+                'name' => $file->getClientOriginalName(),
+                'mime' => $file->getMimeType(),
+            ];
+        }
+
+        try {
+            Mail::to($transaction->user->email)
+                ->send(new AdminMessageToClient(
+                    $transaction,
+                    $user,
+                    $data['subject'],
+                    $data['body'],
+                    $attachments,
+                ));
+        } catch (\Throwable $e) {
+            Log::error('Admin email to client failed: ' . $e->getMessage(), [
+                'transaction_id' => $transaction->id,
+                'sender_id'      => $user->id,
+            ]);
+            return response()->json(['message' => 'Failed to send email. Please try again.'], 500);
+        }
+
+        // Audit trail
+        TransactionLog::create([
+            'transaction_id' => $transaction->id,
+            'performed_by'   => $user->id,
+            'action'         => 'Email sent to client',
+            'notes'          => $data['subject'] . (count($attachments) ? " · " . count($attachments) . " attachment(s)" : ''),
+        ]);
+
+        return response()->json([
+            'message' => "Email sent to {$transaction->user->name}"
+                . (count($attachments) ? ' with ' . count($attachments) . ' attachment(s)' : '')
+                . '.',
         ]);
     }
 
