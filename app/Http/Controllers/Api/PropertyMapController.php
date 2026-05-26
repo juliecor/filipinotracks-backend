@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PropertyBoundary;
 use App\Models\PropertyMap;
 use App\Models\Transaction;
+use App\Models\TransactionLog;
 use Illuminate\Http\Request;
 
 class PropertyMapController extends Controller
@@ -137,6 +138,20 @@ class PropertyMapController extends Controller
         }
 
         $map->update($data);
+
+        // Describe what was edited for the activity timeline
+        $edits = [];
+        if (array_key_exists('latitude', $data) || array_key_exists('longitude', $data)) $edits[] = 'pin';
+        if (array_key_exists('geojson_polygon', $data)) $edits[] = 'boundary';
+        if (array_key_exists('staff_notes', $data)) $edits[] = 'notes';
+        if (array_key_exists('verified_at', $data)) $edits[] = 'verification stamp';
+
+        TransactionLog::create([
+            'transaction_id' => $transaction->id,
+            'performed_by'   => $user->id,
+            'action'         => 'Property map edited',
+            'notes'          => $edits ? 'Updated: ' . implode(', ', $edits) : null,
+        ]);
 
         return response()->json($map->load('boundaries', 'verifiedBy:id,name'));
     }

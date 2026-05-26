@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\Transaction;
+use App\Models\TransactionLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -31,6 +32,13 @@ class DocumentController extends Controller
             'description'   => $request->description,
         ]);
 
+        TransactionLog::create([
+            'transaction_id' => $transaction->id,
+            'performed_by'   => $request->user()->id,
+            'action'         => 'Document uploaded',
+            'notes'          => $file->getClientOriginalName(),
+        ]);
+
         return response()->json($document->append('url'), 201);
     }
 
@@ -41,8 +49,18 @@ class DocumentController extends Controller
             abort(403);
         }
 
+        $name = $document->original_name;
+        $transactionId = $document->transaction_id;
+
         Storage::disk('s3')->delete($document->file_path);
         $document->delete();
+
+        TransactionLog::create([
+            'transaction_id' => $transactionId,
+            'performed_by'   => $user->id,
+            'action'         => 'Document removed',
+            'notes'          => $name,
+        ]);
 
         return response()->json(['message' => 'Document deleted.']);
     }
