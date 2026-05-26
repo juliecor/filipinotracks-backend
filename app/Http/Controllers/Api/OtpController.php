@@ -19,9 +19,14 @@ class OtpController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
+        // Per product decision: return a clear "not registered" response so
+        // users aren't stuck waiting for an OTP that will never arrive. This
+        // trades a small anti-enumeration cost for big UX clarity.
         if (!$user) {
-            // Return success anyway to prevent email enumeration
-            return response()->json(['message' => 'If that email is registered, a code has been sent.']);
+            return response()->json([
+                'message'        => 'This email is not registered in FilipinoTracks. Please create an account first.',
+                'not_registered' => true,
+            ], 404);
         }
 
         // Invalidate any previous unused codes for this email
@@ -39,7 +44,9 @@ class OtpController extends Controller
 
         Mail::to($request->email)->send(new OtpLogin($code, $user->name));
 
-        return response()->json(['message' => 'If that email is registered, a code has been sent.']);
+        return response()->json([
+            'message' => 'A 6-digit code has been sent to ' . $request->email . '.',
+        ]);
     }
 
     // POST /auth/otp/verify
