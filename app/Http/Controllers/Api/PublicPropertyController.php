@@ -34,6 +34,7 @@ class PublicPropertyController extends Controller
     {
         $transaction = Transaction::with([
                 'propertyMap.boundaries',
+                'propertyMap.photos',
                 'propertyMap.verifiedBy:id',
             ])
             ->where('transaction_code', $code)
@@ -67,6 +68,11 @@ class PublicPropertyController extends Controller
                 // Polygon coords are required to render the boundary preview
                 'geojson_polygon'   => $map->geojson_polygon,
             ],
+            'photos' => $map->photos->map(fn ($p) => [
+                'id'      => $p->id,
+                'url'     => $p->url,
+                'caption' => $p->caption,
+            ])->values(),
         ]);
     }
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\InquiryController;
 use App\Http\Controllers\Api\AdminStatsController;
 use App\Http\Controllers\Api\TestimonialController;
 use App\Http\Controllers\Api\AnnouncementController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\PropertyMapController;
+use App\Http\Controllers\Api\PropertyPhotoController;
 use App\Http\Controllers\Api\PublicPropertyController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\UserController;
@@ -52,6 +54,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/transactions/{transaction}/property-map', [PropertyMapController::class, 'store']);
     Route::put('/transactions/{transaction}/property-map',  [PropertyMapController::class, 'update']);
 
+    // Property Photos (admin/staff manage; everyone authenticated can read)
+    Route::get('/property-maps/{propertyMap}/photos',          [PropertyPhotoController::class, 'index']);
+    Route::post('/property-maps/{propertyMap}/photos',         [PropertyPhotoController::class, 'store']);
+    Route::put('/property-maps/{propertyMap}/photos/reorder',  [PropertyPhotoController::class, 'reorder']);
+    Route::put('/property-photos/{photo}',                     [PropertyPhotoController::class, 'update']);
+    Route::delete('/property-photos/{photo}',                  [PropertyPhotoController::class, 'destroy']);
+
     // Public property registry (any authenticated user — sensitive fields stripped)
     Route::get('/property-maps', [PropertyMapController::class, 'publicIndex']);
 
@@ -84,6 +93,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('property-maps/{propertyMap}',   [PropertyMapController::class, 'destroy']);
         Route::get('testimonials',    [TestimonialController::class, 'adminIndex']);
         Route::put('testimonials/{testimonial}', [TestimonialController::class, 'updateStatus']);
+        Route::get('inquiries',                 [InquiryController::class, 'index']);
+        Route::put('inquiries/{inquiry}',       [InquiryController::class, 'update']);
         Route::apiResource('users',         UserController::class);
         Route::apiResource('announcements', AnnouncementController::class)->except(['index']);
     });

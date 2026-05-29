@@ -23,6 +23,7 @@ class PropertyMapController extends Controller
                 'transaction:id,transaction_code,status,service_type,user_id',
                 'transaction.user:id,name,email',
                 'boundaries',
+                'photos',
             ])
             ->whereHas('transaction')
             ->latest()
@@ -38,6 +39,7 @@ class PropertyMapController extends Controller
         $maps = PropertyMap::with([
                 'transaction:id,transaction_code,status,service_type',
                 'boundaries',
+                'photos',
             ])
             ->whereHas('transaction')
             ->latest()
@@ -51,7 +53,7 @@ class PropertyMapController extends Controller
     {
         $this->authorizeAccess($request->user(), $transaction);
 
-        $map = $transaction->propertyMap()->with('boundaries', 'verifiedBy:id,name')->first();
+        $map = $transaction->propertyMap()->with('boundaries', 'photos', 'verifiedBy:id,name')->first();
 
         if (!$map) return response()->json(null);
 
