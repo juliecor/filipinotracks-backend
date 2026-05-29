@@ -9,12 +9,19 @@ use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\PropertyMapController;
+use App\Http\Controllers\Api\PublicPropertyController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
 // Public testimonials
 Route::get('/testimonials', [TestimonialController::class, 'index']);
+
+// Public shareable property pages (no auth required)
+Route::prefix('public')->group(function () {
+    Route::get('/properties/{code}',         [PublicPropertyController::class, 'show']);
+    Route::post('/properties/{code}/inquire',[PublicPropertyController::class, 'inquire']);
+});
 
 // Auth
 Route::prefix('auth')->group(function () {
