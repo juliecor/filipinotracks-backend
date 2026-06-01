@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
 use App\Models\Notification;
+use App\Models\PropertyView;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 
@@ -49,11 +50,14 @@ class PublicPropertyController extends Controller
             return response()->json(['message' => 'Property not found or not publicly available.'], 404);
         }
 
+        $this->recordView($request, $map);
+
         return response()->json([
             'transaction_code'  => $transaction->transaction_code,
             'service_type'      => $transaction->service_type,
             'status'            => $transaction->status,
             'verified_at'       => $map->verified_at,
+            'views'             => $map->views()->count(),
             'property' => [
                 'registered_owner'  => $map->registered_owner,
                 'title_number'      => $map->title_number,
@@ -149,5 +153,28 @@ class PublicPropertyController extends Controller
     private function isShareable(Transaction $transaction): bool
     {
         return in_array($transaction->status, self::SHAREABLE_STATUSES, true);
+    }
+
+    /**
+     * Record a public view, deduped per IP within a 6-hour window so that
+     * refreshes and the same visitor returning soon don't inflate the count.
+     */
+    private function recordView(Request $request, $map): void
+    {
+        $ip = $request->ip();
+
+        $recent = PropertyView::where('property_map_id', $map->id)
+            ->where('ip_address', $ip)
+            ->where('viewed_at', '>=', now()->subHours(6))
+            ->exists();
+
+        if ($recent) return;
+
+        PropertyView::create([
+            'property_map_id' => $map->id,
+            'ip_address'      => $ip,
+            'user_agent'      => substr((string) $request->userAgent(), 0, 512),
+            'viewed_at'       => now(),
+        ]);
     }
 }
