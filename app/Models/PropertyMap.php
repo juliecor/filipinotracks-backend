@@ -25,6 +25,7 @@ class PropertyMap extends Model
     public function boundaries()  { return $this->hasMany(PropertyBoundary::class)->orderBy('sort_order'); }
     public function photos()      { return $this->hasMany(PropertyPhoto::class)->orderBy('sort_order')->orderBy('id'); }
     public function views()       { return $this->hasMany(PropertyView::class); }
+    public function inquiries()   { return $this->hasMany(Inquiry::class); }
     public function verifiedBy()  { return $this->belongsTo(User::class, 'verified_by'); }
 
     /**
