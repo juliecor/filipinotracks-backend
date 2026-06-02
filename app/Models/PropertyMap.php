@@ -12,6 +12,7 @@ class PropertyMap extends Model
         'registered_owner', 'land_area', 'province', 'city_municipality',
         'barangay', 'full_address', 'latitude', 'longitude',
         'geojson_polygon', 'staff_notes', 'verified_at', 'verified_by',
+        'price', 'is_featured', 'listing_blurb',
     ];
 
     protected $casts = [
@@ -19,6 +20,8 @@ class PropertyMap extends Model
         'verified_at'     => 'datetime',
         'latitude'        => 'float',
         'longitude'       => 'float',
+        'price'           => 'float',
+        'is_featured'     => 'boolean',
     ];
 
     public function transaction() { return $this->belongsTo(Transaction::class); }

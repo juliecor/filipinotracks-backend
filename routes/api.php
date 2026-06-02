@@ -21,6 +21,7 @@ Route::get('/testimonials', [TestimonialController::class, 'index']);
 
 // Public shareable property pages (no auth required)
 Route::prefix('public')->group(function () {
+    Route::get('/featured-properties',       [PublicPropertyController::class, 'featured']);
     Route::get('/properties/{code}',         [PublicPropertyController::class, 'show']);
     Route::post('/properties/{code}/inquire',[PublicPropertyController::class, 'inquire']);
 });
@@ -90,6 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('admin')->middleware('role:admin')->group(function () {
         Route::get('stats',           [AdminStatsController::class, 'stats']);
         Route::get('property-maps',                    [PropertyMapController::class, 'index']);
+        Route::put('property-maps/{propertyMap}/listing', [PropertyMapController::class, 'updateListing']);
         Route::delete('property-maps/{propertyMap}',   [PropertyMapController::class, 'destroy']);
         Route::get('testimonials',    [TestimonialController::class, 'adminIndex']);
         Route::put('testimonials/{testimonial}', [TestimonialController::class, 'updateStatus']);

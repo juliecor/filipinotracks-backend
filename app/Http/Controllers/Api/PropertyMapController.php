@@ -160,6 +160,23 @@ class PropertyMapController extends Controller
         return response()->json($map->load('boundaries', 'verifiedBy:id,name'));
     }
 
+    // PUT /admin/property-maps/{propertyMap}/listing — admin only
+    // Sets public-listing fields: asking price, featured flag, short blurb.
+    public function updateListing(Request $request, PropertyMap $propertyMap)
+    {
+        $data = $request->validate([
+            'price'         => 'nullable|numeric|min:0|max:999999999999',
+            'is_featured'   => 'boolean',
+            'listing_blurb' => 'nullable|string|max:280',
+        ]);
+
+        $propertyMap->update($data);
+
+        return response()->json(
+            $propertyMap->fresh()->loadCount(['views', 'inquiries'])
+        );
+    }
+
     // DELETE /admin/property-maps/{propertyMap} — admin only
     public function destroy(Request $request, PropertyMap $propertyMap)
     {

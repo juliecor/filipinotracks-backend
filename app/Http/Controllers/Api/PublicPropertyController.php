@@ -66,6 +66,8 @@ class PublicPropertyController extends Controller
                 'survey_plan_number'=> $map->survey_plan_number,
                 'property_type'     => $map->property_type,
                 'land_area'         => $map->land_area,
+                'price'             => $map->price,
+                'listing_blurb'     => $map->listing_blurb,
                 // Privacy: only show city/province — never full address or GPS pin
                 'province'          => $map->province,
                 'city_municipality' => $map->city_municipality,
@@ -78,6 +80,40 @@ class PublicPropertyController extends Controller
                 'caption' => $p->caption,
             ])->values(),
         ]);
+    }
+
+    /**
+     * GET /api/public/featured-properties
+     *
+     * Returns admin-curated featured properties for the landing page.
+     * Only approved/released properties with the is_featured flag are shown,
+     * privacy-trimmed and limited to a sensible carousel size.
+     */
+    public function featured()
+    {
+        $maps = \App\Models\PropertyMap::query()
+            ->with(['photos', 'transaction:id,transaction_code,status'])
+            ->withCount('views')
+            ->where('is_featured', true)
+            ->whereHas('transaction', fn ($t) => $t->whereIn('status', self::SHAREABLE_STATUSES))
+            ->latest()
+            ->limit(8)
+            ->get();
+
+        return response()->json(
+            $maps->map(fn ($map) => [
+                'transaction_code'  => $map->transaction?->transaction_code,
+                'registered_owner'  => $map->registered_owner,
+                'property_type'     => $map->property_type,
+                'land_area'         => $map->land_area,
+                'price'             => $map->price,
+                'listing_blurb'     => $map->listing_blurb,
+                'province'          => $map->province,
+                'city_municipality' => $map->city_municipality,
+                'views'             => $map->views_count,
+                'cover_photo'       => $map->photos->first()?->url,
+            ])->values()
+        );
     }
 
     /**
