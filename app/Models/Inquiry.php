@@ -21,4 +21,5 @@ class Inquiry extends Model
     public function transaction(): BelongsTo  { return $this->belongsTo(Transaction::class); }
     public function propertyMap(): BelongsTo  { return $this->belongsTo(PropertyMap::class); }
     public function respondedBy(): BelongsTo  { return $this->belongsTo(User::class, 'responded_by'); }
+    public function replies()                 { return $this->hasMany(InquiryReply::class)->orderBy('created_at'); }
 }

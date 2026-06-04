@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\NewPropertyInquiry;
 use App\Models\Inquiry;
 use App\Models\Notification;
 use App\Models\PropertyView;
 use App\Models\Transaction;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Public, unauthenticated read access to *shareable* properties.
@@ -31,7 +35,7 @@ class PublicPropertyController extends Controller
      * Resolves a transaction by its public-facing transaction_code and returns
      * its property map (sanitized) for the share page.
      */
-    public function show(string $code)
+    public function show(Request $request, string $code)
     {
         $transaction = Transaction::with([
                 'propertyMap.boundaries',
@@ -158,18 +162,19 @@ class PublicPropertyController extends Controller
             'status'          => 'new',
         ]);
 
-        // Notify whoever can act on this lead
-        $recipients = collect();
+        // Notify whoever can act on this lead — assigned staff + all admins
+        $recipientIds = collect();
         if ($transaction->assigned_staff_id) {
-            $recipients->push($transaction->assigned_staff_id);
+            $recipientIds->push($transaction->assigned_staff_id);
         }
         // Always loop in admins so leads don't sit on an absent staffer
-        $adminIds = \App\Models\User::role('admin')->pluck('id');
-        $recipients = $recipients->concat($adminIds)->unique();
+        $recipientIds = $recipientIds->concat(User::role('admin')->pluck('id'))->unique();
 
-        foreach ($recipients as $userId) {
+        $recipients = User::whereIn('id', $recipientIds)->get();
+
+        foreach ($recipients as $user) {
             Notification::create([
-                'user_id' => $userId,
+                'user_id' => $user->id,
                 'type'    => 'property_inquiry',
                 'title'   => 'New Property Inquiry',
                 'body'    => "{$data['name']} is interested in {$transaction->transaction_code}.",
@@ -179,6 +184,22 @@ class PublicPropertyController extends Controller
                     'inquiry_id'       => $inquiry->id,
                 ],
             ]);
+        }
+
+        // Email alert to the team — best-effort so a mail hiccup never blocks
+        // the visitor's inquiry from being saved.
+        $emails = $recipients->pluck('email')->filter()->unique()->values();
+        if ($emails->isNotEmpty()) {
+            try {
+                $inquiry->load('transaction', 'propertyMap');
+                $mail = Mail::to($emails->all());
+                if ($cc = env('MAIL_CC')) $mail->cc($cc);
+                $mail->send(new NewPropertyInquiry($inquiry));
+            } catch (\Throwable $e) {
+                Log::warning('Inquiry email failed: ' . $e->getMessage(), [
+                    'inquiry_id' => $inquiry->id,
+                ]);
+            }
         }
 
         return response()->json([

@@ -97,6 +97,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('testimonials/{testimonial}', [TestimonialController::class, 'updateStatus']);
         Route::get('inquiries',                 [InquiryController::class, 'index']);
         Route::put('inquiries/{inquiry}',       [InquiryController::class, 'update']);
+        Route::post('inquiries/{inquiry}/reply',[InquiryController::class, 'reply']);
         Route::apiResource('users',         UserController::class);
         Route::apiResource('announcements', AnnouncementController::class)->except(['index']);
     });
