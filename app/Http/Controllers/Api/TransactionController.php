@@ -76,7 +76,14 @@ class TransactionController extends Controller
         $this->authorizeAccess($request->user(), $transaction);
 
         return response()->json(
-            $transaction->load(['user:id,name,email', 'assignedStaff:id,name,email', 'logs.performedBy:id,name', 'documents', 'payments'])
+            $transaction->load([
+                'user:id,name,email',
+                'assignedStaff:id,name,email',
+                'logs.performedBy:id,name',
+                'documents',
+                'payments',
+                'staffNotesUpdatedBy:id,name',
+            ])
         );
     }
 
@@ -187,6 +194,51 @@ class TransactionController extends Controller
         return response()->json(
             $transaction->fresh(['user:id,name,email', 'assignedStaff:id,name,email', 'logs.performedBy:id,name', 'documents', 'payments'])
         );
+    }
+
+    /**
+     * Save the private "internal staff notes" on a transaction.
+     * Admin + staff (assigned to the transaction) only — never the client.
+     */
+    public function saveStaffNotes(Request $request, Transaction $transaction)
+    {
+        $user = $request->user();
+        $isAdmin = $user->hasRole('admin');
+        $isAssigned = ($user->hasRole('staff') || $user->hasRole('agent'))
+            && $transaction->assigned_staff_id === $user->id;
+
+        if (!$isAdmin && !$isAssigned) abort(403);
+
+        $data = $request->validate([
+            'staff_notes' => 'nullable|string|max:10000',
+        ]);
+
+        $previous = $transaction->staff_notes;
+        $transaction->update([
+            'staff_notes'             => $data['staff_notes'],
+            'staff_notes_updated_by'  => $user->id,
+            'staff_notes_updated_at'  => now(),
+        ]);
+
+        // Log only when content actually changes (avoid noise on every keystroke)
+        if ($previous !== $data['staff_notes']) {
+            TransactionLog::create([
+                'transaction_id' => $transaction->id,
+                'performed_by'   => $user->id,
+                'action'         => empty($data['staff_notes']) ? 'Staff notes cleared' : 'Staff notes updated',
+                'notes'          => null,
+            ]);
+        }
+
+        $transaction->load('staffNotesUpdatedBy:id,name');
+
+        return response()->json([
+            'staff_notes'             => $transaction->staff_notes,
+            'staff_notes_updated_at'  => $transaction->staff_notes_updated_at,
+            'staff_notes_updated_by'  => $transaction->staffNotesUpdatedBy
+                ? ['id' => $transaction->staffNotesUpdatedBy->id, 'name' => $transaction->staffNotesUpdatedBy->name]
+                : null,
+        ]);
     }
 
     public function destroy(Request $request, Transaction $transaction)

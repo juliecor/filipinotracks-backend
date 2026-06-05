@@ -46,6 +46,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // On-demand admin/staff email to the transaction's client
     Route::post('/transactions/{transaction}/email-client', [TransactionController::class, 'emailClient']);
 
+    // Internal staff notes (admin + assigned staff only — stripped from client view)
+    Route::put('/transactions/{transaction}/staff-notes', [TransactionController::class, 'saveStaffNotes']);
+
     // Documents
     Route::post('/transactions/{transaction}/documents', [DocumentController::class, 'store']);
     Route::delete('/documents/{document}',               [DocumentController::class, 'destroy']);
