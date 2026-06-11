@@ -93,6 +93,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin routes
     Route::prefix('admin')->middleware('role:admin')->group(function () {
         Route::get('stats',           [AdminStatsController::class, 'stats']);
+        Route::get('gis-map',                          [PropertyMapController::class, 'gisMap']);
         Route::get('property-maps',                    [PropertyMapController::class, 'index']);
         Route::put('property-maps/{propertyMap}/listing', [PropertyMapController::class, 'updateListing']);
         Route::delete('property-maps/{propertyMap}',   [PropertyMapController::class, 'destroy']);

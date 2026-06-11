@@ -11,6 +11,101 @@ use Illuminate\Http\Request;
 
 class PropertyMapController extends Controller
 {
+    // GET /admin/gis-map  — GIS FeatureCollection of every PropertyMap (every status)
+    // Returns RFC 7946-compliant GeoJSON. Drives the admin GIS map page,
+    // overlap detection, and one-click export to QGIS/Google Earth/etc.
+    public function gisMap(Request $request)
+    {
+        $user = $request->user();
+        if (!$user->hasRole('admin') && !$user->hasRole('staff')) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $maps = PropertyMap::with([
+                'transaction:id,transaction_code,status,service_type,user_id,created_at',
+                'transaction.user:id,name,email',
+                'verifiedBy:id,name',
+            ])
+            ->whereHas('transaction')
+            ->get();
+
+        $features = [];
+        foreach ($maps as $map) {
+            $polygon  = $map->geojson_polygon['geometry']['coordinates'][0] ?? null;
+            $hasPoly  = is_array($polygon) && count($polygon) >= 3;
+            $hasPin   = $map->latitude && $map->longitude;
+            if (!$hasPoly && !$hasPin) continue;
+
+            // Geometry: prefer polygon; fall back to a Point for pin-only records
+            $geometry = $hasPoly
+                ? ['type' => 'Polygon', 'coordinates' => [$polygon]]
+                : ['type' => 'Point',   'coordinates' => [(float) $map->longitude, (float) $map->latitude]];
+
+            // Centroid — for the inline marker + camera framing on click
+            $centroid = $hasPin
+                ? ['lat' => (float) $map->latitude, 'lng' => (float) $map->longitude]
+                : $this->polygonCentroid($polygon);
+
+            $features[] = [
+                'type'       => 'Feature',
+                'id'         => $map->id,
+                'geometry'   => $geometry,
+                'properties' => [
+                    'id'                 => $map->id,
+                    'transaction_id'     => $map->transaction_id,
+                    'transaction_code'   => $map->transaction?->transaction_code,
+                    'status'             => $map->transaction?->status,
+                    'service_type'       => $map->transaction?->service_type,
+                    'submitted_by'       => $map->transaction?->user?->name,
+                    'submitted_by_email' => $map->transaction?->user?->email,
+                    'submitted_at'       => optional($map->transaction?->created_at)->toIso8601String(),
+                    'title_number'       => $map->title_number,
+                    'lot_number'         => $map->lot_number,
+                    'block_number'       => $map->block_number,
+                    'survey_plan_number' => $map->survey_plan_number,
+                    'property_type'      => $map->property_type,
+                    'registered_owner'   => $map->registered_owner,
+                    'land_area'          => $map->land_area ? (float) $map->land_area : null,
+                    'province'           => $map->province,
+                    'city_municipality'  => $map->city_municipality,
+                    'barangay'           => $map->barangay,
+                    'full_address'       => $map->full_address,
+                    'price'              => $map->price ? (float) $map->price : null,
+                    'is_featured'        => (bool) $map->is_featured,
+                    'verified_at'        => optional($map->verified_at)->toIso8601String(),
+                    'verified_by'        => $map->verifiedBy?->name,
+                    'has_polygon'        => $hasPoly,
+                    'has_pin'            => (bool) $hasPin,
+                    'centroid'           => $centroid,
+                ],
+            ];
+        }
+
+        return response()->json([
+            'type'        => 'FeatureCollection',
+            'features'    => $features,
+            'generated_at'=> now()->toIso8601String(),
+            'total'       => count($features),
+        ]);
+    }
+
+    /**
+     * Geometric centroid of a GeoJSON polygon ring ([[lng,lat], …]).
+     * Returns ['lat'=>…,'lng'=>…] — simple average is fine at parcel scale.
+     */
+    private function polygonCentroid(array $ring): array
+    {
+        $sumLat = 0.0; $sumLng = 0.0; $n = 0;
+        foreach ($ring as $pair) {
+            $sumLng += (float) $pair[0];
+            $sumLat += (float) $pair[1];
+            $n++;
+        }
+        return $n > 0
+            ? ['lat' => $sumLat / $n, 'lng' => $sumLng / $n]
+            : ['lat' => 0, 'lng' => 0];
+    }
+
     // GET /admin/property-maps  — all maps for admin overview
     public function index(Request $request)
     {
