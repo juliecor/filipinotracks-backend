@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AiScanController;
 use App\Http\Controllers\Api\Admin\InquiryController;
 use App\Http\Controllers\Api\AdminStatsController;
 use App\Http\Controllers\Api\TestimonialController;
@@ -39,6 +40,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me',               [AuthController::class, 'me']);
     Route::put('/auth/profile',          [AuthController::class, 'updateProfile']);
     Route::post('/auth/avatar',          [AuthController::class, 'updateAvatar']);
+
+    // AI title scanner (server-side OpenAI proxy — admin/staff only, rate-limited)
+    Route::post('/ai-scan-title', [AiScanController::class, 'scanTitle'])->middleware('throttle:30,60');
 
     // Transactions (role-filtered inside controller)
     Route::apiResource('transactions', TransactionController::class);
