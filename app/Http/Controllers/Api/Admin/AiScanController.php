@@ -51,6 +51,10 @@ CRITICAL RULES:
    - "low"    — heavy distortion, missing fields, possibly wrong document type
 8. The bearings array must list lines in ORDER from corner 1→2, 2→3, …, last→1.
    Each bearing's point_from / point_to should be the corner numbers as strings ("1", "2", …).
+9. Rate EVERY top-level field individually in field_confidence:
+   "high" = crisply legible, "medium" = readable but ambiguous, "low" = guessed from a faint/blurry region,
+   "unknown" = the field is null / not present on the document.
+10. Rate each bearing row's legibility in its "conf" field the same way ("high" / "medium" / "low").
 PROMPT;
 
     /** The JSON schema OpenAI must conform to — identical to the frontend version. */
@@ -82,8 +86,29 @@ PROMPT;
                         'minutes'    => ['type' => 'number'],
                         'dir2'       => ['type' => 'string', 'enum' => ['E', 'W']],
                         'distance'   => ['type' => 'number'],
+                        'conf'       => ['type' => 'string', 'enum' => ['high', 'medium', 'low']],
                     ],
-                    'required' => ['point_from', 'point_to', 'dir1', 'degrees', 'minutes', 'dir2', 'distance'],
+                    'required' => ['point_from', 'point_to', 'dir1', 'degrees', 'minutes', 'dir2', 'distance', 'conf'],
+                ],
+            ],
+            'field_confidence' => [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'properties' => [
+                    'title_number'       => ['type' => 'string', 'enum' => ['high', 'medium', 'low', 'unknown']],
+                    'lot_number'         => ['type' => 'string', 'enum' => ['high', 'medium', 'low', 'unknown']],
+                    'block_number'       => ['type' => 'string', 'enum' => ['high', 'medium', 'low', 'unknown']],
+                    'survey_plan_number' => ['type' => 'string', 'enum' => ['high', 'medium', 'low', 'unknown']],
+                    'registered_owner'   => ['type' => 'string', 'enum' => ['high', 'medium', 'low', 'unknown']],
+                    'land_area_sqm'      => ['type' => 'string', 'enum' => ['high', 'medium', 'low', 'unknown']],
+                    'province'           => ['type' => 'string', 'enum' => ['high', 'medium', 'low', 'unknown']],
+                    'city_municipality'  => ['type' => 'string', 'enum' => ['high', 'medium', 'low', 'unknown']],
+                    'barangay'           => ['type' => 'string', 'enum' => ['high', 'medium', 'low', 'unknown']],
+                ],
+                'required' => [
+                    'title_number', 'lot_number', 'block_number', 'survey_plan_number',
+                    'registered_owner', 'land_area_sqm',
+                    'province', 'city_municipality', 'barangay',
                 ],
             ],
             'confidence' => ['type' => 'string', 'enum' => ['high', 'medium', 'low']],
@@ -93,7 +118,7 @@ PROMPT;
             'title_number', 'lot_number', 'block_number', 'survey_plan_number',
             'registered_owner', 'land_area_sqm',
             'province', 'city_municipality', 'barangay', 'full_address',
-            'tie_line', 'bearings', 'confidence', 'notes',
+            'tie_line', 'bearings', 'field_confidence', 'confidence', 'notes',
         ],
     ];
 
