@@ -39,4 +39,10 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    'zonal' => [
+        'site'  => env('ZONAL_SITE_URL', 'https://zonalvalue.ph'),
+        'url'   => env('ZONAL_API_URL'),
+        'token' => env('ZONAL_API_TOKEN'),
+    ],
+
 ];

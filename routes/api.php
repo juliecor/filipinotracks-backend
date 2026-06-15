@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\AiScanController;
+use App\Http\Controllers\Api\Admin\ZonalLookupController;
 use App\Http\Controllers\Api\Admin\InquiryController;
 use App\Http\Controllers\Api\AdminStatsController;
 use App\Http\Controllers\Api\TestimonialController;
@@ -43,6 +44,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // AI title scanner (server-side OpenAI proxy — admin/staff only, rate-limited)
     Route::post('/ai-scan-title', [AiScanController::class, 'scanTitle'])->middleware('throttle:30,60');
+
+    // Zonal-value lookup (proxies the external BIR zonal API — admin/staff only)
+    Route::get('/zonal-lookup', [ZonalLookupController::class, 'lookup'])->middleware('throttle:60,60');
 
     // Transactions (role-filtered inside controller)
     Route::apiResource('transactions', TransactionController::class);
