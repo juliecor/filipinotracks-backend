@@ -136,6 +136,7 @@ PROMPT;
         $request->validate([
             'images'   => 'required|array|min:1|max:2',
             'images.*' => 'required|file|image|mimetypes:image/jpeg,image/png,image/webp|max:20480',
+            'focus'    => 'sometimes|string|in:bearings',
         ], [
             'images.*.max' => 'Each image must be 20 MB or smaller.',
         ]);
@@ -159,13 +160,21 @@ PROMPT;
             ];
         }
 
+        $baseText = count($imageMessages) > 1
+            ? 'Extract the title information from these ' . count($imageMessages) . ' images (they belong to the same property — front + back / page 1 + page 2).'
+            : 'Extract the title information from this image.';
+
+        // A focused re-scan asks the model to concentrate on the technical
+        // description so a poorly-read bearings table can be recovered without
+        // the user retyping every course by hand.
+        if ($request->input('focus') === 'bearings') {
+            $baseText .= ' FOCUS: Concentrate on the TECHNICAL DESCRIPTION / bearings table. '
+                . 'Read EVERY course in order (1→2, 2→3, …, last→1) with precise dir1, degrees, minutes, dir2, and distance in meters. '
+                . 'Be meticulous with the minutes column and do not skip or merge any line. Other fields may be approximate.';
+        }
+
         $userContent = array_merge(
-            [[
-                'type' => 'text',
-                'text' => count($imageMessages) > 1
-                    ? 'Extract the title information from these ' . count($imageMessages) . ' images (they belong to the same property — front + back / page 1 + page 2).'
-                    : 'Extract the title information from this image.',
-            ]],
+            [['type' => 'text', 'text' => $baseText]],
             $imageMessages
         );
 
