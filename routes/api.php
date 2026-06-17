@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\AiScanController;
 use App\Http\Controllers\Api\Admin\ZonalLookupController;
+use App\Http\Controllers\Api\Admin\MarketCompsController;
 use App\Http\Controllers\Api\Admin\InquiryController;
 use App\Http\Controllers\Api\AdminStatsController;
 use App\Http\Controllers\Api\TestimonialController;
@@ -47,6 +48,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Zonal-value lookup (proxies the external BIR zonal API — admin/staff only)
     Route::get('/zonal-lookup', [ZonalLookupController::class, 'lookup'])->middleware('throttle:60,60');
+
+    // Market-value comparables from our own priced listings (admin/staff only)
+    Route::get('/market-comps', [MarketCompsController::class, 'comps'])->middleware('throttle:60,60');
 
     // Transactions (role-filtered inside controller)
     Route::apiResource('transactions', TransactionController::class);
